@@ -182,4 +182,25 @@ You can run BUILD-IMAGE
     (die :return-code 2
 	 :message "Couldn't find build-image configuration.")))
 
-(build-image)
+;;(build-image)
+
+
+(defun read-asdf-definition (asdf-file)
+  "Get ASDF definition from ASDF-FILE"
+  (let* ((directory (pathname (directory-namestring asdf-file)))
+	 (definition (let* ((*default-pathname-defaults* directory))
+		      (with-open-file (stream asdf-file :external-format :utf-8)
+			(read stream)))))
+    (if (not (getf definition :pathname))
+	(setq definition (append definition (list :pathname directory)))
+	(setf (getf definition :pathname)  directory))
+    (setf (getf definition :depends-on nil) nil)
+     (eval definition)))
+
+
+(defun get-asdf-system-files (system)
+  (loop for child in (asdf:component-children system)
+	when (eq 'ASDF:CL-SOURCE-FILE (type-of child))
+	  collect (asdf::component-pathname child)
+	when (eq 'ASDF:MODULE (type-of child))
+        nconc (get-asdf-system-files child)))
