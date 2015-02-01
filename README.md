@@ -13,6 +13,10 @@ application like you would do with
 [buildapp](http://www.xach.com/lisp/buildapp/) and custom images that fits
 your needs (see [inspiration](https://gist.github.com/kisom/1548276)).
 
+An `upgrade` function is also available to allow you to hot patch you image
+without having to recompile all dependencies. So you can just provide your
+project lisp files to update your application live.
+
 ## Requirements
 
 You need:
@@ -33,14 +37,22 @@ Depending on which *Common Lisp* implementation you use, need to run
 different command lines to build your application or your custom kernel
 image:
 
-- *SBCL*: `sbcl --no-sysinit --no-userinit --load image-builder.lisp`
-- *CCL*: `ccl64 -n -l image-builder.lisp`
+- *SBCL*: `sbcl --no-sysinit --no-userinit --load image-builder.lisp --eval '(image-builder:build-image)'`
+- *CCL*: `ccl64  -n -l image-builder.lisp --eval '(image-builder:build-image)'`
 
 And that's it.
 
-`Quicklisp` and all dependencies are installed in the `build` directory in
-your project root folder. You won't pollute your `~/quicklisp` setup.
+`Quicklisp` and all dependencies are installed by default in the `build`
+directory in your project root folder. You won't pollute your `~/quicklisp`
+setup.
 
+If you want to hot patch you application you can do something like:
+
+```common-lip
+(defun main(args)
+  (when (string= "upgrade" (nth 1 args ))
+    (image-builder::upgrade :verbose t)))
+```
 
 ## Configuration file
 
@@ -48,34 +60,32 @@ your project root folder. You won't pollute your `~/quicklisp` setup.
 The configuration file is a valid *Lisp S-expression*:
 
 ```common-lisp
-(:custom-modules
+(:asdf-file "foo.asd"
+ :packages (:foo :foo-cli)
+ :entry-point "foo-cli:main"
+ :output-file "foo"
+ :custom-systems
  ((:url "https://example.com/foo/bar.git" :method :git)
   (:url "https://example.com/foo/baz.git" :method :git))
- :local-projects (:foo :foo-cli)
- :entry-point "foo-cli:main"
- :file-output "foo"
- :options-sbcl (:purify t :executable t :compression t)
- :options-ccl (:error-handler :quit :prepend-kernel t))
+ :options
+   #+sbcl (:purify t :executable t :compression t)
+   #+ccl (:error-handler :quit :prepend-kernel t)
+ :build-dir "build/"
+ :quicklisp-url "http://beta.quicklisp.org/quicklisp.lisp")
 ```
 
-### `:custom-modules`
+### `:asdf-file`
 
-A list of extra modules not included in
-[Quicklisp](http://www.quicklisp.org/beta/) to be downloaded into
-`build/quicklisp/local-projects`.
+This entry is mandatory and defines where the `ASDF` definition of your
+project resides.
 
-Each item is composed of:
+### `:packages`
 
-- `:url`: the project URL.
-- `:method`: which method to use. For the moment only `git` based packages
-  are supported.
-
-### `:local-projects`
-
-A list containing you application packages as defined in you `foo.asd`
+A list containing you application packages as defined in your `foo.asd`
 file. See
 [ASDF](http://common-lisp.net/project/asdf/asdf/Defining-systems-with-defsystem.html)
 documentation for further details.
+
 
 ### `:entry-point`
 
@@ -90,17 +100,37 @@ by your *Common Lisp* implementation:
 - *SBCL*: `sb-ext:*posix-argv*`
 - *CCL*: `ccl:*command-line-argument-list*`
 
-### `:options-scbl`
+### `:custom-systems`
+
+A list of extra systems not included in
+[Quicklisp](http://www.quicklisp.org/beta/) to be downloaded into
+`build/quicklisp/local-projects`.
+
+Each item is composed of:
+
+- `:url`: the project URL.
+- `:method`: which method to use. For the moment only `git` based packages
+  are supported.
+
+### `:options`
 
 List of options to be passed to the
 [`sb-ext:save-lisp-and-die`](http://www.sbcl.org/manual/#Function-sb_002dext_003asave_002dlisp_002dand_002ddie)
-function when generating images for *SBCL*.
+function when generating images for *SBCL* or
+[`ccl:save-application`](http://ccl.clozure.com/manual/chapter4.9.html) if
+you are using *CCL*. You can use `#+sbcl` or `#+ccl` if you have different
+definition for your *Common Lisp* implementation.
 
-### `:options-ccl`
+### `:build-dir` (default: `build/`)
 
-Same as `:options-sbcl` but for *CCL* and the
-[`ccl:save-application`](http://ccl.clozure.com/manual/chapter4.9.html)
-function.
+Where to put Quicklip and other building dependencies. Please not the
+trailing `/` at the end of the directory name. Usually you don't want to
+change that setting.
+
+### `:quicklisp-url` (default: `http://beta.quicklisp.org/quicklisp.lisp`)
+
+Where to find Quicklisp bootstrap file. You don't want to change that.
+
 
 ## Copyright
 
