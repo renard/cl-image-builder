@@ -6,9 +6,9 @@
 ;;;; shell)
 ;;;;
 ;;;; - with SBCL:
-;;;;     sbcl --no-sysinit --no-userinit --load image-builder.lisp
+;;;;     sbcl --no-sysinit --no-userinit --load image-builder.lisp --eval '(image-builder:build-image)'
 ;;;; - with CCL
-;;;;    ccl64  -n -l image-builder.lisp
+;;;;    ccl64  -n -l image-builder.lisp --eval '(image-builder:build-image)'
 ;;;;
 
 (require :asdf)
@@ -25,47 +25,63 @@
 (defpackage #:image-builder
   (:use #:cl)
   (:export
-   ;; #:*quicklisp-setup-url*
-   ;; #:*build-directory*
-   ;; #:*quicklisp-bootstrap-file*
-   ;; #:*quicklisp-directory*
-   ;; #:*quicklisp-local-projects-directory*
-   ;; #:*quicklisp-init-file*
-   ;;#:load-configuration
    #:build-image
-   #:upgrade
-   ;;#:read-asdf-definition
-   ;;#:get-asdf-system-files
-   ))
+   #:upgrade))
 
 (in-package #:image-builder)
 
 
 (defparameter *quicklisp-bootstrap-file* #P"quicklisp.lisp"
-  "Path to the quicklisp bootstrap file.")
+  "Path to the quicklisp bootstrap file relative to BUILD-DIR from the
+CONFIGURATION.")
 
 (defparameter *quicklisp-directory* #P"quicklisp/"
-  "Quicklisp intallation directory")
+  "Quicklisp intallation directory relative to BUILD-DIR from the
+CONFIGURATION.")
 
 (defparameter *quicklisp-local-projects-directory* 
   (merge-pathnames #P"local-projects/" *quicklisp-directory*)
-  "Quicklisp local projects directory")
+  "Quicklisp local projects directory relative to *QUICKLISP-DIRECTORY*.")
 
 (defparameter *quicklisp-init-file*
   (merge-pathnames #P"setup.lisp" *quicklisp-directory*)
-  "Path to the quicklisp setup file.")
+  "Path to the quicklisp setup file relative to *QUICKLISP-DIRECTORY*.")
 
 
-(defparameter *default-build-dir* #P"build/"
-	"Root of build directory")
+(defparameter *default-build-dir*
+  #P"build/"
+  "Default root of build directory overridden by :BUILD-DIR in
+the configuration.")
 
 (defparameter *default-quicklisp-setup-url*
   "http://beta.quicklisp.org/quicklisp.lisp"
   "URL from where to download QuickLisp.")
 
 
+
+
+
 (defstruct configuration
-  ""
+  "CONFIGURATION structure where (asterisk items are mandatory):
+
+- (*) :ASDF-FILE path to your project ASDF definition file.
+
+- :PACKAGES is a list of packages composing your project.
+
+- :ENTRY-POINT is the function to call when the lisp image is loaded. Let
+  this option blank if you want to create a custom lisp image.
+
+- :OPTIONS list of option to be passed to SB-EXT:SAVE-LISP-AND-DIE or
+  CCL:SAVE-APPLICATION.
+
+- :CUSTOM-SYSTEMS list of CUSTOM-SYSTEMS to be downloaded in the Quiclisp
+  local-projects folder.
+
+- :BUILD-DIR directory where to install Quicklisp and all
+  dependencies. Overrides *DEFAULT-BUILD-DIR*
+
+- :QUICKLISP-URL override *DEFAULT-QUICKLISP-SETUP-URL*
+"
   (asdf-file)
   (packages)
   (entry-point)
@@ -78,6 +94,13 @@
   (quicklisp-url *default-quicklisp-setup-url*))
 
 (defstruct custom-system
+  "Definition of a custom system where:
+
+- :URL an URL from where to download the custom system.
+
+- :METHOD which method to use to downlowd the custom system. Supported
+  values are :GIT.
+"
   url
   method)
 
@@ -104,7 +127,11 @@ SETUP-FILE."
        (build-dir *default-build-dir*)
        (setup-file *quicklisp-init-file*)
        (quicklisp-bootstrap *quicklisp-bootstrap-file*))
-  
+    "Install Quicklisp into BUILD-DIR of load SETUP-FILE if Quicklisp is
+already installed into BUILD-DIR.
+
+If Quicklisp is not installed yet, the QUICKLISP-BOOTSTRAP file is
+downloaded from URL and loaded using curl."
   (let* ((ql-init (merge-pathnames setup-file build-dir))
 	 (ql-dir (pathname (directory-namestring ql-init)))
 	 (ql-bootstrap (merge-pathnames quicklisp-bootstrap build-dir)))
@@ -128,6 +155,7 @@ SETUP-FILE."
 		   :path ql-dir)))))
 
 (defun install-system-git (system target)
+  "Install SYSTEM into TARGET directory using git command."
   (let* ((url (custom-system-url system))
 	 (directory (when url (pathname-name url)))
 	 (target (when directory
@@ -137,9 +165,15 @@ SETUP-FILE."
 	(asdf:run-shell-command
 	 (format nil "git clone ~a ~a" url target))))))
 
-(defun install-custom-systems (custom-systems
-			       &key (build-dir *default-build-dir*)
-				 (local-project *quicklisp-local-projects-directory*))
+(defun install-custom-systems
+    (custom-systems
+     &key (build-dir *default-build-dir*)
+       (local-project *quicklisp-local-projects-directory*))
+  "Download every custom system defined in CUSTOM-SYSTEMS list in the
+LOCAL-PROJECT directory of BUILD-DIR.
+
+CUSTOM-SYSTEMS is a list of CUSTOM-SYSTEM structure.
+"
   (let ((lp-dir (merge-pathnames local-project build-dir)))
     (loop for system in custom-systems
 	  for syst = (apply #'make-custom-system system)
@@ -168,13 +202,29 @@ if there were an empty string between them."
 		   while j)))
 
 (defun string-to-function-symbol(string)
+  "Convert STRING to its symbol function representation."
   (let ((elements (split-string-by-char (string-upcase string) :char #\:)))
     (when elements
       (apply #'intern (reverse elements)))))
 
 
 (defun write-image (&key entry-point file-output options)
-  "Write the image file according CONF directives."
+  "Write the common lisp image of current running lisp instance.
+
+If an ENTRY-POINT is defined, that function would be called when the
+instance is loaded again. The ENTRY-POINT function is call with all command
+line argument as a list parameter, thus you don't have to worry about how to
+retrieve command line arguments. The ENTRY-POINT signature should be
+something like:
+
+  (defun main (argv) ... )
+
+FILE-OUTPUT is the basename of the file to be written. The output file is
+suffixed with the lisp implementation you use and \".exe\". I t would result
+of \"FILE-OUTPUT.sbcl.exe\" or \"FILE-OUTPUT.ccl.exe\"
+
+A list of OPTIONS can be passed to SB-EXT:SAVE-LISP-AND-DIE or
+CCL:SAVE-APPLICATION."
   (let ((entry-function (string-to-function-symbol entry-point)))
     #+sbcl
     (let ((args (append
@@ -206,6 +256,14 @@ if there were an empty string between them."
 		      (custom-systems t)
 		      (load-packages t)
 		      )
+  "Build a custom lisp image from configuration read from  CONFIG-FILE.
+
+If INSTALL-QUICKLISP is NIL Quicklisp setup would be skipped. IF
+CUSTOM-SYSTEMS is NIL none of custom system definition would be loaded. If
+LOAD-PACKAGES is NIL, no package defined in the ASDF-FILE configuration
+would be loaded.
+
+If the build succeed the program exits to the shell."
   (let ((conf (load-configuration config-file)))
     ;;
     (when install-quicklisp
@@ -228,7 +286,7 @@ if there were an empty string between them."
 
 
 (defun read-asdf-definition (asdf-file)
-  "Get all ASDF definition from ASDF-FILE"
+  "Get all ASDF definition from ASDF-FILE as a list of ASDF:SYSTEM."
   (format t "Reading ASDF into ~A~%" asdf-file)
   (let* ((%dir  (directory-namestring asdf-file))
 	 (directory (pathname (if (string= "" %dir) "." %dir)))
@@ -262,7 +320,8 @@ if there were an empty string between them."
 
 
 (defun get-asdf-system-files (system)
-  "Get all CL files from SYSTEM."
+  "For a given ASDF:SYSTEM SYSTEM, return a list of CL files declared in
+the :COMPONENTS section."
   (loop for child in (asdf:component-children system)
 	when (eq 'asdf:cl-source-file (type-of child))
 	  collect (asdf::component-pathname child)
@@ -270,13 +329,15 @@ if there were an empty string between them."
         nconc (get-asdf-system-files child)))
 
 (defun get-asdf-systems-files (systems)
-  "Get all CL files from all SYSTEMS."
+  "Calls GET-ASDF-SYSTEM-FILES for each system of the SYSTEMS list of
+ASDF:SYSTEM an return a list of all declared CL files."
   (loop for system in systems
 	nconc (get-asdf-system-files system))) 
 
 
-
 (defun upgrade (&key (config-file #P".image-builder.lisp") verbose)
+  "Upgrade current image using CONFIG-FILE settings. If VERBOSE is T,
+display file name being loaded."
   (let* ((conf (load-configuration config-file))
 	 (asdf-defs (read-asdf-definition (configuration-asdf-file conf))))
     
