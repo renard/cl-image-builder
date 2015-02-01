@@ -281,7 +281,7 @@ If the build succeed the program exits to the shell."
 
 (defun read-asdf-definition (asdf-file)
   "Get all ASDF definition from ASDF-FILE as a list of ASDF:SYSTEM."
-  (format t "Reading ASDF into ~A~%" asdf-file)
+  (format t "Reading ASDF from ~A~%" asdf-file)
   (let* ((%dir  (directory-namestring asdf-file))
 	 (directory (pathname (if (string= "" %dir) "." %dir)))
 	 (definition (let* ((*default-pathname-defaults* directory))
