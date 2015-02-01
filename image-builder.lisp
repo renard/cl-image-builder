@@ -296,7 +296,7 @@ If the build succeed the program exits to the shell."
 	   collect (multiple-value-bind (system pos)
 		       (read-from-string definition nil nil :start i)
 		     (setq i (+ i pos))
-		     (when (listp system)
+		     (when (and (listp system) (> (length system) 0 ))
 		       ;; Make sure all files would be readable.
 		       (when (not (getf system :pathname))
 			 (setq system (append system (list :pathname ""))))
