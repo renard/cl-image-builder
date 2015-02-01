@@ -16,12 +16,6 @@
 ;; (asdf:disable-output-translations)
 ;; asdf:system-relative-pathname
 
-(asdf:defsystem #:image-builder
-  :description "Build standalone Common Lisp images and apps"
-  :author "Sébastien Gross <seb•ɑƬ•chezwam•ɖɵʈ•org>"
-  :license "WTFPL"
-  :components nil)
-
 (defpackage #:image-builder
   (:use #:cl)
   (:export
