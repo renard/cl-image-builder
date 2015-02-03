@@ -219,30 +219,26 @@ of \"FILE-OUTPUT.sbcl.exe\" or \"FILE-OUTPUT.ccl.exe\"
 
 A list of OPTIONS can be passed to SB-EXT:SAVE-LISP-AND-DIE or
 CCL:SAVE-APPLICATION."
-  (let ((entry-function (string-to-function-symbol entry-point)))
-    #+sbcl
-    (let ((args (append
-		 (cons (format nil "~a.sbcl.exe" file-output) options)
-		 (when entry-function
-		   (list
-		    :toplevel
-		    #'(lambda()
-			(funcall entry-function sb-ext:*posix-argv*)))))))
-      ;;(format t "~S~%" args)
-      (apply #'sb-ext:save-lisp-and-die args))
+  (let* ((entry-function (string-to-function-symbol entry-point))
+	 (args (append
+		(cons (format nil "~a.~a.exe"
+			      file-output
+			      #+sbcl "sbcl"
+			      #+ccl "ccl")
+		      options)
+		(when entry-point (list :executable t)))))
     
-    #+ccl
-    (let ((args (append
-		 (cons (format nil "~a.ccl.exe" file-output) options)
-		 (when entry-function
-		   (list :toplevel-function
-			 #'(lambda()
-			     (funcall entry-function
-				      ccl:*command-line-argument-list*)))))))
-      ;;(format t "~S~%" args)
-      (apply #'ccl:save-application args))))
-
-
+    (when entry-function
+      ;; We want a pristine hook
+      (setq uiop:*image-restore-hook*
+	    '(uiop/stream::setup-stdin
+	      uiop/configuration::compute-user-cache
+	      uiop/image:setup-command-line-arguments uiop/stream:setup-stderr
+	      uiop/stream:setup-temporary-directory))
+      (uiop/image:register-image-restore-hook
+       #'(lambda() (funcall entry-function (uiop:raw-command-line-arguments)))
+       nil))
+    (apply #'uiop/image:dump-image args)))
 
 (defun build-image (&key
 		      (config-file #P".image-builder.lisp")
