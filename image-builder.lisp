@@ -146,7 +146,8 @@ downloaded from URL and loaded using curl."
 	    (delete-package '#:ql))
 	  ;; Bootstrap Quicklisp
 	  (funcall (intern "INSTALL" "QUICKLISP-QUICKSTART")
-		   :path ql-dir)))))
+		   :path ql-dir)
+	  (funcall (intern "QUICKLOAD" "QUICKLISP") :uiop)))))
 
 (defun install-system-git (system target)
   "Install SYSTEM into TARGET directory using git command."
