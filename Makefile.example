@@ -1,0 +1,52 @@
+# -*- Makefile -*-
+
+# Put that makefile in you project, create a .image-builder.lisp file that
+# contents:
+#
+# ;; -*- lisp -*-
+# (:asdf-file "foo.asd"
+#  :custom-systems
+#  ((:url "https://github.com/bar/foo.git" :method :git))
+#  :packages (:foo :foo-cli)
+#  :entry-point "foo-cli:main"
+#  :output-file "foo")
+#
+# Run make to build you project for both SBCL and CCL
+#
+
+
+IMAGE_BUILDER_URL = https://raw.githubusercontent.com/renard/cl-image-builder/dev/image-builder.lisp
+BUILDDIR      = build
+IMAGE_BUILDER = $(BUILDDIR)/image-builder.lisp
+ASDF          = $(wildcard *.asd)
+APP           = $(patsubst %.asd,%,$(ASDF))
+
+
+all: $(APP)
+
+$(BUILDDIR):
+	mkdir -p $@
+
+$(IMAGE_BUILDER): $(BUILDDIR)
+	curl -o $@ https://raw.githubusercontent.com/renard/cl-image-builder/master/image-builder.lisp
+
+
+sbcl: $(APP).sbcl.exe
+$(APP).sbcl.exe: $(IMAGE_BUILDER)
+	sbcl --no-sysinit --no-userinit \
+		--load $(IMAGE_BUILDER) \
+		--eval '(image-builder:build-image)'
+
+ccl: $(APP).ccl.exe
+$(APP).ccl.exe: $(IMAGE_BUILDER)
+	ccl64 -n -l $(IMAGE_BUILDER) \
+		--eval '(image-builder:build-image)'
+
+$(APP): $(APP).sbcl.exe $(APP).ccl.exe;
+app: sbcl ccl
+
+
+clean:
+	rm -fr $(BUILDDIR)
+
+.PHONY: clean
