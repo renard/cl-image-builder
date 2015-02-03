@@ -133,7 +133,9 @@ downloaded from URL and loaded using curl."
     (if (quicklisp-installedp build-dir :setup-file setup-file)
 	(progn
 	  (format t "Loading Quicklisp from ~a~%" ql-init)
-	  (load ql-init))
+	  (load ql-init)
+	  ;; Ned to explicitly load UIOP on some Lisps (SBCL)
+	  (funcall (intern "QUICKLOAD" "QUICKLISP") :uiop))
 	(progn
 	  (format t "Installing Quicklisp to ~a~%" ql-dir)
 	  (ensure-directories-exist ql-dir)
