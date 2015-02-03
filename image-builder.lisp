@@ -217,8 +217,7 @@ FILE-OUTPUT is the basename of the file to be written. The output file is
 suffixed with the lisp implementation you use and \".exe\". I t would result
 of \"FILE-OUTPUT.sbcl.exe\" or \"FILE-OUTPUT.ccl.exe\"
 
-A list of OPTIONS can be passed to SB-EXT:SAVE-LISP-AND-DIE or
-CCL:SAVE-APPLICATION."
+A list of OPTIONS can be passed to UIOP/IMAGE:DUMP-IMAGE."
   (let* ((entry-function (string-to-function-symbol entry-point))
 	 (args (append
 		(cons (format nil "~a.~a.exe"
