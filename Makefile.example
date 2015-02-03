@@ -15,7 +15,7 @@
 #
 
 
-IMAGE_BUILDER_URL = https://raw.githubusercontent.com/renard/cl-image-builder/dev/image-builder.lisp
+IMAGE_BUILDER_URL = https://raw.githubusercontent.com/renard/cl-image-builder/master/image-builder.lisp
 BUILDDIR      = build
 IMAGE_BUILDER = $(BUILDDIR)/image-builder.lisp
 ASDF          = $(wildcard *.asd)
