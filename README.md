@@ -37,6 +37,10 @@ Depending on which *Common Lisp* implementation you use, need to run
 different command lines to build your application or your custom kernel
 image:
 
+- See the *Makefile*: `make`
+
+or:
+
 - *SBCL*: `sbcl --no-sysinit --no-userinit --load image-builder.lisp --eval '(image-builder:build-image)'`
 - *CCL*: `ccl64  -n -l image-builder.lisp --eval '(image-builder:build-image)'`
 
@@ -114,12 +118,7 @@ Each item is composed of:
 
 ### `:options`
 
-List of options to be passed to the
-[`sb-ext:save-lisp-and-die`](http://www.sbcl.org/manual/#Function-sb_002dext_003asave_002dlisp_002dand_002ddie)
-function when generating images for *SBCL* or
-[`ccl:save-application`](http://ccl.clozure.com/manual/chapter4.9.html) if
-you are using *CCL*. You can use `#+sbcl` or `#+ccl` if you have different
-definition for your *Common Lisp* implementation.
+List of options to be passed to the `uiop/image:dump-image` function.
 
 ### `:build-dir` (default: `build/`)
 
