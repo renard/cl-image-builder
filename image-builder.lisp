@@ -299,7 +299,7 @@ If the build succeed the program exits to the shell."
 			 (setq system (append system (list :pathname ""))))
 		       
 		       (setf (getf system :pathname)
-			     (merge-pathnames directory
+			     (merge-pathnames (getf system :pathname)
 					      ;; on some systems
 					      ;; *default-pathname-defaults*
 					      ;; is not absolute.
