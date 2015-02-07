@@ -4,8 +4,7 @@
 # contents:
 #
 # ;; -*- lisp -*-
-# (:asdf-file "foo.asd"
-#  :custom-systems
+# (:custom-systems
 #  ((:url "https://github.com/bar/foo.git" :method :git))
 #  :packages (:foo :foo-cli)
 #  :entry-point "foo-cli:main"

@@ -1,5 +1,4 @@
-(:asdf-file "foo.asd"
- :packages (:foo :foo-cli)
+( :packages (:foo :foo-cli)
  :entry-point "foo-cli:main"
  :output-file "foo"
  :custom-systems

@@ -64,24 +64,18 @@ If you want to hot patch you application you can do something like:
 The configuration file is a valid *Lisp S-expression*:
 
 ```common-lisp
-(:asdf-file "foo.asd"
- :packages (:foo :foo-cli)
+(:packages (:foo :foo-cli)
  :entry-point "foo-cli:main"
  :output-file "foo"
  :custom-systems
  ((:url "https://example.com/foo/bar.git" :method :git)
   (:url "https://example.com/foo/baz.git" :method :git))
  :options
-   #+sbcl (:purify t :executable t :compression t)
-   #+ccl (:error-handler :quit :prepend-kernel t)
+   #+sbcl (:compression t)
+   #-sbcl nil
  :build-dir "build/"
  :quicklisp-url "http://beta.quicklisp.org/quicklisp.lisp")
 ```
-
-### `:asdf-file`
-
-This entry is mandatory and defines where the `ASDF` definition of your
-project resides.
 
 ### `:packages`
 
