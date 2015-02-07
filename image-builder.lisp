@@ -58,8 +58,6 @@ the configuration.")
 (defstruct configuration
   "CONFIGURATION structure where (asterisk items are mandatory):
 
-- (*) :ASDF-FILE path to your project ASDF definition file.
-
 - :PACKAGES is a list of packages composing your project.
 
 - :ENTRY-POINT is the function to call when the lisp image is loaded. Let
@@ -76,7 +74,6 @@ the configuration.")
 
 - :QUICKLISP-URL override *DEFAULT-QUICKLISP-SETUP-URL*
 "
-  (asdf-file)
   (packages)
   (entry-point)
   (output-file)
@@ -251,7 +248,7 @@ A list of OPTIONS can be passed to UIOP/IMAGE:DUMP-IMAGE."
 
 If INSTALL-QUICKLISP is NIL Quicklisp setup would be skipped. IF
 CUSTOM-SYSTEMS is NIL none of custom system definition would be loaded. If
-LOAD-PACKAGES is NIL, no package defined in the ASDF-FILE configuration
+LOAD-PACKAGES is NIL, no package defined in the CONFIG-FILE
 would be loaded.
 
 If the build succeed the program exits to the shell."
@@ -273,73 +270,54 @@ If the build succeed the program exits to the shell."
      :file-output (configuration-output-file conf)
      :options (configuration-options conf))))
 
+(defun get-system-lisp-files (system)
+  "Return a list of all lisp files from SYSTEM searched from the current
+directory.
 
+The returned list is in the order asdf would load the files."
+  (let* ((asdf:*central-registry* (list *default-pathname-defaults*))
+	 (asdf-files (asdf:input-files 'asdf:load-op system))
+	 (sysdefs (loop :for asdf in asdf-files
+			:collect
+			(let ((system (asdf::remove-plist-key
+				       :depends-on
+				       (asdf::safe-read-file-form asdf))))
+			  (when (not (getf system :pathname))
+			    (setq system (append system (list :pathname ""))))
+			  (setf (getf system :pathname)
+				(merge-pathnames (getf system :pathname)
+						 ;; on some systems
+						 ;; *default-pathname-defaults*
+						 ;; is not absolute.
+						 (truename
+						  *default-pathname-defaults*)))
+			  (eval system)))))
+    (loop for sysdef in sysdefs
+	  :nconc 
+	  (loop :for (o . c) in (asdf/plan:plan-actions
+				 (asdf:make-plan
+				  asdf/plan:*default-plan-class* 'asdf:load-op sysdef))
+		:when (and
+		       (eq 'asdf/lisp-action:load-op (type-of o))
+		       (eq 'asdf/lisp-action:cl-source-file (type-of c)))
+		  :collect (asdf::component-pathname c)))))
 
-
-(defun read-asdf-definition (asdf-file)
-  "Get all ASDF definition from ASDF-FILE as a list of ASDF:SYSTEM."
-  (format t "Reading ASDF from ~A~%" asdf-file)
-  (let* ((%dir  (directory-namestring asdf-file))
-	 (directory (pathname (if (string= "" %dir) "." %dir)))
-	 (definition (let* ((*default-pathname-defaults* directory))
-		       (with-open-file (stream asdf-file :external-format :utf-8)
-			 (let ((data (make-string (file-length stream))))
-			   (read-sequence data stream)
-			   data)))))
-    
-    (remove
-     nil
-     (loop for i below (length definition)
-	   collect (multiple-value-bind (system pos)
-		       (read-from-string definition nil nil :start i)
-		     (setq i (+ i pos))
-		     (when (and (listp system) (> (length system) 0 ))
-		       ;; Make sure all files would be readable.
-		       (when (not (getf system :pathname))
-			 (setq system (append system (list :pathname ""))))
-		       
-		       (setf (getf system :pathname)
-			     (merge-pathnames (getf system :pathname)
-					      ;; on some systems
-					      ;; *default-pathname-defaults*
-					      ;; is not absolute.
-					      (truename
-					       *default-pathname-defaults*)))
-		       ;; Do not keep depends-on
-		       (setf (getf system :depends-on nil) nil)
-		       (eval system)))))))
-
-
-(defun get-asdf-system-files (system)
-  "For a given ASDF:SYSTEM SYSTEM, return a list of CL files declared in
-the :COMPONENTS section."
-  (loop for child in (asdf:component-children system)
-	when (eq 'asdf:cl-source-file (type-of child))
-	  collect (asdf::component-pathname child)
-	when (eq 'asdf:module (type-of child))
-        nconc (get-asdf-system-files child)))
-
-(defun get-asdf-systems-files (systems)
-  "Calls GET-ASDF-SYSTEM-FILES for each system of the SYSTEMS list of
-ASDF:SYSTEM an return a list of all declared CL files."
-  (loop for system in systems
-	nconc (get-asdf-system-files system))) 
-
+(defun upgrade-asdf (system &key verbose)
+  (let ((files (get-system-lisp-files system)))
+    (loop :for file in files
+	  :do (progn
+		(when verbose
+		  (format t "Loading ~a~%" file))
+		(load file)))))
 
 (defun upgrade (&key (config-file #P".image-builder.lisp") verbose)
   "Upgrade current image using CONFIG-FILE settings. If VERBOSE is T,
 display file name being loaded."
-  (let* ((conf (load-configuration config-file))
-	 (asdf-defs (read-asdf-definition (configuration-asdf-file conf))))
-    
-    (loop for file in (get-asdf-systems-files asdf-defs)
-	  do (progn
-	       (when verbose (format t "Loading ~a~%" file))
-	       (load file)))
+  (let* ((conf (load-configuration config-file)))
+    (format t "Loading ~A~%" (configuration-packages conf))
+    (upgrade-asdf (configuration-packages conf) :verbose verbose)
     
     (write-image
      :entry-point (configuration-entry-point conf)
      :file-output (configuration-output-file conf)
      :options (configuration-options conf))))
-
-;; image-builder.lisp ends here
