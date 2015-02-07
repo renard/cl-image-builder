@@ -4,4 +4,4 @@
   :author "Sébastien Gross <seb•ɑƬ•chezwam•ɖɵʈ•org>"
   :license "WTFPL"
   :components
-  ((:file "image-builder")
+  ((:file "image-builder")))
