@@ -222,7 +222,8 @@ A list of OPTIONS can be passed to UIOP/IMAGE:DUMP-IMAGE."
 		(cons (format nil "~a.~a.exe"
 			      file-output
 			      #+sbcl "sbcl"
-			      #+ccl "ccl")
+			      #+ccl "ccl"
+			      #-(or sbcl ccl) "CL")
 		      options)
 		(when entry-point (list :executable t)))))
     
