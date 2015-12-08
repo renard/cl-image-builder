@@ -93,7 +93,8 @@ the configuration.")
   values are :GIT.
 "
   url
-  method)
+  method
+  branch)
 
 
 (defmacro with-handler-case ((&key
@@ -181,11 +182,12 @@ downloaded from URL and loaded using curl."
   (let* ((url (custom-system-url system))
 	 (directory (when url (pathname-name url)))
 	 (target (when directory
-		   (merge-pathnames directory target))))
+		   (merge-pathnames directory target)))
+	 (branch (custom-system-branch system)))
     (when target
       (unless (probe-file target)
 	(asdf:run-shell-command
-	 (format nil "git clone ~a ~a" url target))))))
+	 (format nil "git clone ~@[-b '~a'~] ~a ~a" branch url target))))))
 
 (defun install-custom-systems
     (custom-systems
