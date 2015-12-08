@@ -95,13 +95,41 @@ the configuration.")
   method)
 
 
+(defmacro with-handler-case ((&key
+				(exit-code 1)
+				debug
+				(error-string "~%Fatal: ~a~%"))
+			     &body body)
+  "Execute BODY in a safe way around a HANDLER-CASE macro.
+
+If an exception is triggered, display ERROR-STRING and exit program
+ with EXIT-CODE.
+
+If DEBUG is defined, call INVOKE-DEBUGGER."
+  `(handler-case ,@body
+     (condition (c)
+       (format *error-output* ,error-string c)
+       (if ,debug
+	   (invoke-debugger c)
+	   (uiop:quit ,exit-code)))))
+
+
+
 (defun load-configuration(file)
   "Load IMAGE-BUILDER configuration from FILE and return a CONFIGURATION
 structure."
   (with-open-file (stream file :external-format :utf-8)
     (let ((data (make-string (file-length stream))))
       (read-sequence data stream)
-      (apply #'make-configuration (read-from-string data)))))
+      (with-handler-case
+	  (:exit-code 3
+	   :error-string
+	   (format nil
+		   "~%Cannot load configuration file ~a:~% ~~a~%~%"
+		   file))
+	  (apply #'make-configuration (read-from-string data))))))
+
+
 
 (defun quicklisp-installedp (build-dir
 			     &key (setup-file *quicklisp-init-file*))
