@@ -343,7 +343,8 @@ The returned list is in the order asdf would load the files."
   "Upgrade current image using CONFIG-FILE settings. If VERBOSE is T,
 display file name being loaded."
   (let* ((conf (load-configuration config-file)))
-    (format t "Loading ~A~%" (configuration-packages conf))
+    (when verbose
+      (format t "Loading ~A~%" (configuration-packages conf)))
     (upgrade-asdf (configuration-packages conf) :verbose verbose)
     
     (write-image
