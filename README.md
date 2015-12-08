@@ -54,9 +54,34 @@ If you want to hot patch you application you can do something like:
 
 ```common-lip
 (defun main(args)
-  (when (string= "upgrade" (nth 1 args ))
-    (image-builder::upgrade :verbose t)))
+  (when (member "upgrade" args :test #'string=)
+    (image-builder:upgrade-or-build
+	   :verbose t
+	   :upgrade (not (member "--full" args :test #'string=)))))
 ```
+
+Now you can call your application using:
+
+    my-app upgrade
+
+or
+
+    my-app upgrade --full
+
+If you use `--full` the full application is rebuild (every `ASDF` system is
+upgraded using `Quicklisp`, otherwise only your code from `:PACKAGES` (see
+below) is upgraded.
+
+Once your binary application is built you don't require a CL machine to
+rebuild it.
+
+3 functions are exposed:
+
+- `BUILD-IMAGE`: Build the whole system
+- `UPGRADE`: Only reload systems defined in `:PACKAGES` (see Configuration
+  file).
+- `UPGRADE-OR-BUILD`: Either call `UPGRADE` or `BUILD-IMAGE`.
+
 
 ## Configuration file
 
