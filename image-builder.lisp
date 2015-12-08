@@ -364,7 +364,7 @@ display file name being loaded."
   "Either call UPGRADE or BUILD-IMAGE depending if UPGRADE is T or NIL."
   (if upgrade
       (upgrade :config-file config-file :verbose verbose)
-      (build-image :config-file config-file :verbose verbose
+      (build-image :config-file config-file
 		   :install-quicklisp install-quicklisp
 		   :custom-systems custom-systems
 		   :load-packages load-packages)))
