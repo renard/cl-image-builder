@@ -20,7 +20,8 @@
   (:use #:cl)
   (:export
    #:build-image
-   #:upgrade))
+   #:upgrade
+   #:upgrade-or-build))
 
 (in-package #:image-builder)
 
@@ -351,3 +352,19 @@ display file name being loaded."
      :entry-point (configuration-entry-point conf)
      :file-output (configuration-output-file conf)
      :options (configuration-options conf))))
+
+
+(defun upgrade-or-build (&key
+			   (config-file #P".image-builder.lisp")
+			   (install-quicklisp t)
+			   (custom-systems t)
+			   (load-packages t)
+			   verbose
+			   upgrade)
+  "Either call UPGRADE or BUILD-IMAGE depending if UPGRADE is T or NIL."
+  (if upgrade
+      (upgrade :config-file config-file :verbose verbose)
+      (build-image :config-file config-file :verbose verbose
+		   :install-quicklisp install-quicklisp
+		   :custom-systems custom-systems
+		   :load-packages load-packages)))
